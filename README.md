@@ -25,10 +25,17 @@ claude mcp add image-compress -- npx -y dc-img-compress
 Optionally, register a Claude Code hook that compresses images **automatically** the moment you paste them, before they ever hit the model. One-line install:
 
 ```bash
-npx dc-img-compress install-hook
+npx -p dc-img-compress dc-img-cprs install-hook
 ```
 
-This adds an entry under `hooks.UserPromptSubmit` in `~/.claude/settings.json`. From then on, every time you submit a prompt, the hook scans for absolute image paths and re-encodes any qualifying image **in place**.
+(After publish — for local dev, `npm link` then `dc-img-cprs install-hook`.)
+
+This adds an entry under `hooks.UserPromptSubmit` in `~/.claude/settings.json`. From then on, every time you submit a prompt, the hook scans for image paths and re-encodes any qualifying image **in place**.
+
+**Two discovery sources** (both on by default):
+
+1. **Image-cache scan** — when prompt contains `[Image #N]` markers (Claude Code's paste indicator), the hook reads `~/.claude/image-cache/<session_id>/` and processes every image there.
+2. **Prompt path scan** — any absolute image path appearing as text in the prompt.
 
 **Behavior:**
 
@@ -37,19 +44,22 @@ This adds an entry under `hooks.UserPromptSubmit` in `~/.claude/settings.json`. 
 - Only commits the rewrite if it saves at least 10 % of the bytes.
 - **Fails open**: if anything goes wrong, the hook exits 0 silently — your prompt is never blocked.
 - Logs every action as one JSON line to `~/.claude/dc-img-compress.log`.
+- Emits a brief savings line as `additionalContext` so you see results in chat:
+  - `[dc-img-cprs] ↓ 1 img · 84KB · ~2183 tok (17%) · 8 skipped` — when something compressed
+  - `[dc-img-cprs] · 3 img scanned, all skipped (small/already-compressed)` — when nothing eligible
 
 **Why in-place?** The Claude Code `UserPromptSubmit` hook protocol does not support rewriting the prompt text itself, so we cannot swap a path string for a `.compressed.webp` sibling. Overwriting the temp-file bytes is the only way to deliver a smaller image to the model. (See [hooks reference](https://code.claude.com/docs/en/hooks).)
 
 **Inspect savings:**
 
 ```bash
-dc-img-compress stats
+dc-img-cprs stats
 ```
 
 **Uninstall:**
 
 ```bash
-dc-img-compress uninstall-hook
+dc-img-cprs uninstall-hook
 ```
 
 The hook is **opt-in** and entirely independent of the MCP server install above.
@@ -60,13 +70,15 @@ Tune hook behavior on the fly without reinstalling:
 
 | Command                                   | What it does                                                                |
 | ----------------------------------------- | --------------------------------------------------------------------------- |
-| `dc-img-compress enable`                  | Master switch on; hook runs normally                                        |
-| `dc-img-compress disable`                 | Master switch off; hook exits immediately, no work, no log                  |
-| `dc-img-compress preset <name>`           | Apply a tuning preset (see table below)                                     |
-| `dc-img-compress set <key> <value>`       | Tweak one field; flips `preset` to `"custom"`                               |
-| `dc-img-compress config`                  | Show current config + paths + hook install status                           |
-| `dc-img-compress reset`                   | Delete the config file (revert to built-in defaults)                        |
-| `dc-img-compress clean-cache [--days N]`  | Prune old `~/.claude/image-cache/<dir>/` entries (default 7 days)           |
+| `dc-img-cprs enable`                  | Master switch on; hook runs normally                                                  |
+| `dc-img-cprs disable`                 | Master switch off; hook exits immediately, no work, no log                            |
+| `dc-img-cprs preset <name>`           | Apply a tuning preset (see table below)                                               |
+| `dc-img-cprs set <key> <value>`       | Tweak one field; flips `preset` to `"custom"`                                         |
+| `dc-img-cprs config`                  | Compact config dump (key, current, description) — fits under Bash collapse threshold  |
+| `dc-img-cprs config --full`           | Bordered table view with default/current diff column                                  |
+| `dc-img-cprs reset`                   | Delete the config file (revert to built-in defaults)                                  |
+| `dc-img-cprs stats`                   | Show all-time and last-7-day compression totals from log                              |
+| `dc-img-cprs clean-cache [--days N]`  | Prune old `~/.claude/image-cache/<dir>/` entries (default 7 days)                     |
 
 ### Presets
 
@@ -103,7 +115,7 @@ Settable keys for `set`: `max_dim`, `quality`, `threshold_kb`, `min_savings_pct`
 
 ### Cache cleanup
 
-`dc-img-compress clean-cache --days N` deletes pasted-image cache directories older than `N` days. To avoid clobbering an active session, dirs modified within the last hour are always skipped.
+`dc-img-cprs clean-cache --days N` deletes pasted-image cache directories older than `N` days. To avoid clobbering an active session, dirs modified within the last hour are always skipped.
 
 ## Install (Claude Desktop)
 
