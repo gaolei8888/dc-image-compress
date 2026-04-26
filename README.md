@@ -132,6 +132,22 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
+## Install (OpenAI Codex CLI) — MCP only
+
+Codex CLI ([github.com/openai/codex](https://github.com/openai/codex)) supports stdio MCP servers. Add to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.image-compress]
+command = "npx"
+args = ["-y", "-p", "dc-img-compress", "dc-img-cprs", "--mcp"]
+```
+
+Then ask Codex to call `compress_image` / `compress_image_batch` on any path before reading it.
+
+**Auto-compress on paste is NOT supported on Codex today.** Codex stores pasted clipboard images at `${TMPDIR}/codex-clipboard-<random>.png` with no session subdirectory, so the hook cannot reliably scope to the current session. Tracking issue: [openai/codex#19385](https://github.com/openai/codex/issues/19385) (request for `$CODEX_HOME/image-cache/<session_id>/` parity with Claude Code).
+
+Codex *does* support a `UserPromptSubmit` hook with the same `additionalContext` schema, so once the paste-cache layout is session-scoped upstream, auto-mode is a small patch away.
+
 ## Tools
 
 ### `compress_image`
